@@ -1,2 +1,2 @@
 
-![output example](/assets/example.png "output example")
+![output example](/assets/exampe.png "output example")
