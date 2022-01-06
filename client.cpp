@@ -15,6 +15,8 @@
 #include <fcntl.h>
 #include <fstream>
 
+#include "http.h"
+
 using namespace std;
 //Client side
 
