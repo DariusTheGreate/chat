@@ -40,7 +40,6 @@ public:
             //break;
         }
         cout << "Connected to the server!" << endl;
-        int bytesRead, bytesWritten = 0;
         struct timeval start1, end1;
         gettimeofday(&start1, NULL);
         while(1)
@@ -55,10 +54,10 @@ public:
                 send(clientSd, (char*)&msg, strlen(msg), 0);
                 break;
             }
-            bytesWritten += send(clientSd, (char*)&msg, strlen(msg), 0);
-            cout << "Awaiting server response..." << endl;
+            send(clientSd, (char*)&msg, strlen(msg), 0);
+            cout << "Awaiting server response.. " << clientSd << endl;
             memset(&msg, 0, sizeof(msg));//clear the buffer
-            bytesRead += recv(clientSd, (char*)&msg, sizeof(msg), 0);
+            recv(clientSd, (char*)&msg, sizeof(msg), 0);
             if(!strcmp(msg, "exit"))
             {
                 cout << "Server has quit the session" << endl;
@@ -68,12 +67,6 @@ public:
         }
         gettimeofday(&end1, NULL);
         close(clientSd);
-        cout << "********Session********" << endl;
-        cout << "Bytes written: " << bytesWritten << 
-        " Bytes read: " << bytesRead << endl;
-        cout << "Elapsed time: " << (end1.tv_sec- start1.tv_sec) 
-          << " secs" << endl;
-        cout << "Connection closed" << endl;
     }
 
 private:
