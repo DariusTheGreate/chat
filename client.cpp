@@ -1,5 +1,3 @@
-#include <iostream>
-#include <string>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -15,66 +13,76 @@
 #include <fcntl.h>
 #include <fstream>
 
-#include "http.h"
-
-using namespace std;
-//Client side
+#include "queryTypes.h"
+#include "socketWrapper.h"
+#include "network.h"
+#include "query.h"
+#include "response.h"
 
 class Client{
 public:
-    Client(char *serverIp, int port) : serverIp(serverIp), port(port){
-        struct hostent* host = gethostbyname(serverIp); 
-        bzero((char*)&sendSockAddr, sizeof(sendSockAddr)); 
-        sendSockAddr.sin_family = AF_INET; 
-        sendSockAddr.sin_addr.s_addr = inet_addr(inet_ntoa(*(struct in_addr*)*host->h_addr_list));
-        sendSockAddr.sin_port = htons(port);
+    Client(char *serverIp, int port) : serverIp(serverIp), port(port), client(AF_INET, SOCK_STREAM){
+        //client = init_client_socket(serverIp, port);
+        //struct hostent* host = gethostbyname(serverIp); 
+        //struct sockaddr_in sendSockAddr;    
+        //bzero((char*)&sendSockAddr, sizeof(sendSockAddr)); 
+        //sendSockAddr.sin_family = AF_INET; 
+        //sendSockAddr.sin_addr.s_addr = inet_addr(inet_ntoa(*(struct in_addr*)*host->h_addr_list));
+        //sendSockAddr.sin_port = htons(port);
 
-        clientSd = socket(AF_INET, SOCK_STREAM, 0);
+        client.socketConnect(serverIp, port);    
     }
 
     void session(){
-        int status = connect(clientSd, (sockaddr*) &sendSockAddr, sizeof(sendSockAddr));
-        if(status < 0)
-        {
-            cout<<"Error connecting to socket!"<<endl; 
-            //break;
-        }
-        cout << "Connected to the server!" << endl;
-        struct timeval start1, end1;
-        gettimeofday(&start1, NULL);
         while(1)
         {
-            cout << ">";
-            string data;
-            getline(cin, data);
-            memset(&msg, 0, sizeof(msg));//clear the buffer
-            strcpy(msg, data.c_str());
-            if(data == "exit")
+            std::cout << ">";
+            std::string data;
+            getline(std::cin, data);
+            std::cout << "data size is " << data.size() << " ";
+            query cq = data; 
+            std::cout << "cq size is " << cq.getSize() << "\n";
+
+            auto query = cq.getQueryType(); 
+
+            if(query == queryType::Exit)
             {
-                send(clientSd, (char*)&msg, strlen(msg), 0);
+                client.socketSend(cq.getAcess(), cq.getSize());
                 break;
             }
-            send(clientSd, (char*)&msg, strlen(msg), 0);
-            cout << "Awaiting server response.. " << clientSd << endl;
-            memset(&msg, 0, sizeof(msg));//clear the buffer
-            recv(clientSd, (char*)&msg, sizeof(msg), 0);
-            if(!strcmp(msg, "exit"))
-            {
-                cout << "Server has quit the session" << endl;
-                break;
-            }
-            cout << "Server: " << msg << endl;
+
+            client.socketSend(cq.getAcess(), cq.getSize());
+            
+            response resp;
+            client.socketRecv(resp.getAcess(), maxServerResponseSize);
+            
+            processClientQuery(query, resp);
+
+            std::cout << "Server: " << resp.getAcess() << std::endl;
+            resp.clearState();
         }
-        gettimeofday(&end1, NULL);
-        close(clientSd);
+        
+        close(client);
+    }
+
+    void processClientQuery(const queryType& q, const response& resp){
+        //std::cout << "process response is: " << resp.getAcess() << "\n";
+        if(resp.checkResponseType() == responseType::Negative)
+            return;
+
+        if(q == queryType::Login || q == queryType::Registration){
+            loggedIn = true; 
+            std::cout << "You`re successfully logged in\n";
+        }
+
+
     }
 
 private:
     char *serverIp;
     int port;
-    sockaddr_in sendSockAddr;   
-    char msg[1500]; 
-    int clientSd;
+    bool loggedIn = false;
+    socketWrapper client;
 };
 
 int main(int argc, char *argv[])
@@ -82,10 +90,10 @@ int main(int argc, char *argv[])
     //we need 2 things: ip address and port number, in that order
     if(argc != 3)
     {
-        cerr << "Usage: ip_address port" << endl; exit(0); 
-    } //grab the IP address and port number 
+        std::cerr << "Usage: ip_address port" << std::endl; exit(0); 
+    }
+
     char *serverIp = argv[1]; int port = atoi(argv[2]); 
-    //create a message buffer 
     
     Client c(serverIp, port);
     c.session();
